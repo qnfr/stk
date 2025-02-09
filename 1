@@ -1,0 +1,131 @@
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { Input, Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useRouter } from "next/router";
+
+export default function StokDashboard() {
+  const [stoklar, setStoklar] = useState([]);
+  const [malzemeAdi, setMalzemeAdi] = useState("");
+  const [miktar, setMiktar] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("ilce");
+  const [user, setUser] = useState(null);
+  const router = useRouter();
+  const token = localStorage.getItem("token");
+
+  useEffect(() => {
+    if (token) {
+      fetchStok();
+      fetchUser();
+    }
+  }, [token]);
+
+  const fetchStok = async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/stok", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setStoklar(response.data);
+    } catch (error) {
+      console.error("Stok listesi alınamadı", error);
+    }
+  };
+
+  const fetchUser = async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/user", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUser(response.data);
+    } catch (error) {
+      console.error("Kullanıcı bilgileri alınamadı", error);
+    }
+  };
+
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post("http://localhost:5000/login", {
+        username,
+        password,
+      });
+      localStorage.setItem("token", response.data.access_token);
+      router.reload();
+    } catch (error) {
+      console.error("Giriş yapılamadı", error);
+    }
+  };
+
+  const handleRegister = async () => {
+    try {
+      await axios.post("http://localhost:5000/register", {
+        username,
+        password,
+        role,
+      });
+      alert("Kullanıcı başarıyla oluşturuldu, giriş yapabilirsiniz.");
+    } catch (error) {
+      console.error("Kullanıcı kaydı yapılamadı", error);
+    }
+  };
+
+  const handleEkle = async () => {
+    try {
+      await axios.post(
+        "http://localhost:5000/stok/ekle",
+        { malzeme_adi: malzemeAdi, miktar: parseInt(miktar) },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchStok();
+    } catch (error) {
+      console.error("Stok eklenemedi", error);
+    }
+  };
+
+  return (
+    <div className="p-5 space-y-5">
+      {!token ? (
+        <Card>
+          <CardContent className="space-y-3">
+            <h1 className="text-xl font-bold">Giriş Yap</h1>
+            <Input placeholder="Kullanıcı Adı" value={username} onChange={(e) => setUsername(e.target.value)} />
+            <Input type="password" placeholder="Şifre" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Button onClick={handleLogin}>Giriş Yap</Button>
+            <h2 className="text-lg font-semibold">Kayıt Ol</h2>
+            <Input placeholder="Kullanıcı Adı" value={username} onChange={(e) => setUsername(e.target.value)} />
+            <Input type="password" placeholder="Şifre" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <select value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="admin">Admin</option>
+              <option value="ilce">İlçe</option>
+              <option value="asm">ASM</option>
+            </select>
+            <Button onClick={handleRegister}>Kayıt Ol</Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <h1 className="text-2xl font-bold">Stok Yönetim Paneli</h1>
+          <Card>
+            <CardContent>
+              <div className="flex space-x-3">
+                <Input placeholder="Malzeme Adı" value={malzemeAdi} onChange={(e) => setMalzemeAdi(e.target.value)} />
+                <Input type="number" placeholder="Miktar" value={miktar} onChange={(e) => setMiktar(e.target.value)} />
+                <Button onClick={handleEkle}>Ekle</Button>
+              </div>
+            </CardContent>
+          </Card>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={stoklar}>
+              <XAxis dataKey="malzeme_adi" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="miktar" fill="#82ca9d" />
+            </BarChart>
+          </ResponsiveContainer>
+        </>
+      )}
+    </div>
+  );
+}
